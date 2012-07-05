@@ -13,10 +13,77 @@ typedef struct
     int city1;
 }city_pair;
 
+typedef struct
+{
+    int *arr;
+    int *limits;
+    int nTours;
+}cvrp_sol;
+
 int mcap, mst, dt, xdepot, ydepot, dBest, *caps;
 
 extern double   *xc, *yc;
 extern int   round_distance (int i, int j);
+
+/*
+ * Evaluates a population a gets the best individual
+ *
+ * Input: pop -> Population to be evaluated
+ *        spop -> Size of the population
+ *        dist -> Distance matrix
+ * Output: Pointer to the best element of the population
+ * Side effects: None
+ */
+cvrp_sol *evaluate_pop(cvrp_sol **pop, int spop, int **dist);
+
+/*
+ * Returns de total distance for making a tour
+ *
+ * Input: arr -> Array containing the solution
+ *        limits -> Tour limits
+ *        nTours -> Number of tours
+ *        dist -> Distance matrix
+ * Output: Total distance to be traveled in a solution
+ * Side effect: None
+ */
+int evaluate_sol(int *arr, int *limits, int nTours, int **dist);
+
+/*
+ * Performs an optimization over all the elements of the given population
+ *
+ * Input: pop -> Population to be optimzed
+ *        spop -> Size of the population
+ *        dist -> Distance matrix
+ * Output: none
+ * Side effect: A local search has been applied to every member of the population
+ */
+void optimize(cvrp_sol **pop, int spop, int **dist);
+
+/*
+ * Given an array of cities and a distance matrix, this function delimits a valid
+ * tour.
+ *
+ * Input: arr -> Array with the cities
+ *        limits -> Array where the limits should be saved
+ *        dist -> Distance matrix
+ *        ncities -> Number of cities in arr
+ * Output: Number of tours generated
+ * Side effect: limits has the limits of each tour in the array
+ */
+int delimit(int *arr, int *limits, int **dist, int ncities);
+
+/*
+ * Function that creates an initial population of n individuals.
+ * This procedure generates a population with 2 elements, but allocates enough
+ * space for the n individuals that will be added as the algorithm runs.
+ *
+ * Input: n -> number of individuals to create
+ *        dist -> Distance matrix
+ *        nc -> Number of cities
+ * Output: Array containing the indiciduals of an initial population
+ * Side effects: None
+ */
+cvrp_sol **generate_initial_pop(int n, int **dist, int nc);
 
 /*
  * Function that evaluates wether a tour is better than another
