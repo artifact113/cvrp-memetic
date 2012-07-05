@@ -13,10 +13,66 @@ typedef struct
     int city1;
 }city_pair;
 
+typedef struct
+{
+    int *arr;
+    int *limits;
+    int nTours;
+}cvrp_sol;
+
 int mcap, mst, dt, xdepot, ydepot, dBest, *caps;
 
 extern double   *xc, *yc;
 extern int   round_distance (int i, int j);
+
+/*
+ * Returns de total distance for making a tour
+ *
+ * Input: arr -> Array containing the solution
+ *        limits -> Tour limits
+ *        nTours -> Number of tours
+ *        dist -> Distance matrix
+ * Output: Total distance to be traveled in a solution
+ * Side effect: None
+ */
+int evaluate_sol(int *arr, int *limits, int nTours, int **dist);
+
+/*
+ * Performs an optimization over all the elements of the given population
+ *
+ * Input: pop -> Population to be optimzed
+ *        spop -> Size of the population
+ *        dist -> Distance matrix
+ * Output: none
+ * Side effect: A local search has been applied to every member of the population
+ */
+void optimize(cvrp_sol **pop, int spop, int **dist);
+
+/*
+ * Given an array of cities and a distance matrix, this function delimits a valid
+ * tour.
+ *
+ * Input: arr -> Array with the cities
+ *        limits -> Array where the limits should be saved
+ *        dist -> Distance matrix
+ *        ncities -> Number of cities in arr
+ * Output: Number of tours generated
+ * Side effect: limits has the limits of each tour in the array
+ */
+int delimit(int *arr, int *limits, int **dist, int ncities);
+
+/*
+ * Function that creates an initial population of n individuals.
+ * This procedure generates a population with 2 elements, but allocates enough
+ * space for the n individuals that will be added as the algorithm runs.
+ *
+ * Input: n -> number of individuals to create
+ *        dist -> Distance matrix
+ *        nc -> Number of cities
+ * Output: Array containing the indiciduals of an initial population
+ * Side effects: None
+ */
+cvrp_sol **generate_initial_pop(int n, int **dist, int nc);
 
 /*
  * Function that evaluates wether a tour is better than another
@@ -44,24 +100,6 @@ int compareTours(int *arr0, int *limits0, int nTours0, int *arr1, int *limits1, 
  * Side effects: none
  */
 void printSol(int *arr, int *limits, int nTours, int **dist);
-
-/*
- * Function that creates a slight modification on the solution indicated by the
- * parameters. This modification consists of shifting one city from each tour to
- * the tour that is directly to the right on the array and afterwards
- * recalculating the limits
- *
- * Input: arr -> Array containing the tours of a solution to CVRP
- *        limits -> Array containing the positions where tours end on the previous
- *                  array
- *        ammTours -> Ammount of tours represented in the parameters
- *        ncities -> Ammount of cities
- *        dist -> Distance matrix
- * Output: Ammount of tours in the new solution
- * Side effects: arr contains a new, disturbed solution and limits contains the
- *               boundaries for the new solutions
- */
-int disturb(int *arr, int *limits, int ammTours, int ncities, int **dist);
 
 /*
  * Function that reads an instance of a crvp problem and sets up the corresponding
