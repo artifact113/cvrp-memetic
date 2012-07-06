@@ -26,6 +26,29 @@ extern double   *xc, *yc;
 extern int   round_distance (int i, int j);
 
 /*
+ * Generates an offspring from to given parents using the 'Order crossover' 
+ * method
+ *
+ * Input: p0 -> First parent
+ *        p1 -> Second parent
+ * Output: A pointer to the offspring
+ * Side effect: none
+ */
+cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1);
+
+/*
+ * Creates a new generation of offsprings given a base population
+ *
+ * Input: pop-> Base population
+ *       spop -> Size of the population
+ *       dist -> Distance matrix
+ * Output: A pointer to the array containing the new generation, which consists
+ *         of spop - 1 individuals
+ * Side effects: None.
+ */
+cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist);
+
+/*
  * Evaluates a population a gets the best individual
  *
  * Input: pop -> Population to be evaluated
