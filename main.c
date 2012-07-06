@@ -4,7 +4,7 @@ int main(int argc, char **argv)
 {
     int i, j, its = 40, itBest = 0, popSize = 10, ncitiesGen;
     cvrp_sol *best;
-    cvrp_sol **pop;
+    cvrp_sol **pop, **offs;
     time_t tBest, start, end;
     int **distMatGen;
     char fileName[100], *tmp, fnd[100];
@@ -42,10 +42,24 @@ int main(int argc, char **argv)
     best = evaluate_pop(pop, popSize, distMatGen);
     /*printSol(best->arr, best->limits, best->nTours, distMatGen);
     printf("Total service time: %d\n", evaluate_sol(best->arr, best->limits, best->nTours, distMatGen));*/
-    return 1;
+    
+
     /*Start iterating*/
     for(i = 0; i < its; ++ i){
-
+        /*
+         * The selection for crossing is using all the individuals of the population
+         * and pair them according to their possition in the array
+         */
+        offs = cross_pop(pop, popSize, distMatGen);
+        optimize(offs, popSize, distMatGen);
+        
+        /*Mutation algorithm over 'offs' here*/
+        
+        optimize(offs, popSize, distMatGen);
+        
+        /*Selection algorithm between 'pop' and 'offs' here*/
+        
+        best = evaluate_pop(pop, popSize, distMatGen);
     }
         
     
@@ -546,16 +560,16 @@ cvrp_sol **generate_initial_pop(int n, int **dist, int nc){
     for(i = 0; i < n; ++ i)
         ret[i] = NULL;
     
-    aux = malloc(sizeof(cvrp_sol *));
-    aux->arr = malloc(nc * sizeof(int) - 1);
-    aux->limits = malloc(nc * sizeof(int));
+    aux = (cvrp_sol *)malloc(sizeof(cvrp_sol));
+    aux->arr = malloc((nc - 1) * sizeof(int));
+    aux->limits = malloc((nc - 1) * sizeof(int));
     
     aux->nTours = initSol(aux->arr, aux->limits, dist, nc);
     ret[0] = aux;
     
-    aux = malloc(sizeof(cvrp_sol *));
-    aux->arr = malloc(nc * sizeof(int) - 1);
-    aux->limits = malloc(nc * sizeof(int));
+    aux = (cvrp_sol *)malloc(sizeof(cvrp_sol));
+    aux->arr = malloc((nc - 1) * sizeof(int));
+    aux->limits = malloc((nc - 1) * sizeof(int));
     
     ncities = nc - 1;
     seed = 1;
@@ -646,4 +660,68 @@ cvrp_sol *evaluate_pop(cvrp_sol **pop, int spop, int **dist){
     }
     
     return best;
+}
+
+cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist){
+    int i, j, k;
+    cvrp_sol **offs = (cvrp_sol **)malloc((spop - 1) * sizeof(cvrp_sol *));
+    
+    for(i = 0; i < spop - 1; ++ i)
+        offs[i] = NULL;
+    
+    j = 0;
+    
+    for(i = 0; i < spop - 1; ++ i){
+        if((pop[i] == NULL) || (pop[i + 1] == NULL))
+            continue;
+        /*printf("Crossing %d - %d\n", i, i + 1);*/
+        offs[j] = OX(pop[i], pop[i + 1]);
+        /*printf("Out\n");*/
+        offs[j]->nTours = delimit(offs[j]->arr, offs[j]->limits, dist, pop[i]->limits[pop[i]->nTours - 1]);
+        /*printSol(offs[j]->arr, offs[j]->limits, offs[j]->nTours, dist);*/
+        ++ j;
+    }
+    
+    return offs;
+}
+
+cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1){
+    int nc = p0->limits[p0->nTours - 1], i, j, size_sub, init_sub;
+    int *isUsed = (int *)malloc(nc * sizeof(int));
+    long seed = (long)clock();
+    cvrp_sol *off = (cvrp_sol *)malloc(sizeof(cvrp_sol));
+    
+    size_sub = nc / 3;
+    init_sub = ran01(&seed) * (nc - size_sub);
+    
+    /*printf("Starting at: %d\nWith length: %d\nnc = %d\n", init_sub, size_sub, nc);*/
+    off->arr = (int *)malloc(nc * sizeof(int));
+    off->limits = (int *)malloc(nc * sizeof(int));
+    
+    memset(isUsed, 0, nc * sizeof(int));
+        
+    for(i = init_sub; i < init_sub + size_sub; ++ i){
+        off->arr[i] = p0->arr[i];
+        isUsed[p0->arr[i] - 1] = 1;
+    }
+
+    i = (init_sub == 0 ? init_sub + size_sub : 0);
+    for(j = 0; j < nc; ++ j){
+        /*printf("i = %d, j = %d, value = %d ", i, j, p1->arr[j]);*/
+        if(!isUsed[p1->arr[j] - 1]){
+            off->arr[i] = p1->arr[j];
+            isUsed[p1->arr[j] - 1] = 1;
+            ++ i;
+            if(i == init_sub)
+                i = init_sub + size_sub;
+            /*printf("Assigned");*/
+        }
+        /*printf("\n");*/
+    }
+    
+    /*printf("Offspring: ");
+    for(i = 0; i < nc; ++ i)
+        printf("%d, ", off->arr[i]);
+    printf("\n");*/
+    return off;
 }
