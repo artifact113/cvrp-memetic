@@ -22,8 +22,12 @@ typedef struct
 
 int mcap, mst, dt, xdepot, ydepot, dBest, *caps;
 
+extern long int seed; /* seed for the random number generator */
 extern double   *xc, *yc;
 extern int   round_distance (int i, int j);
+
+void selection(cvrp_sol **pop, cvrp_sol **offs, int spop, int **dist, int ncitiesGen);
+void mutation(cvrp_sol **pop, int spop, int **dist, int ncitiesGen);
 
 /*
  * Generates an offspring from to given parents using the 'Order crossover' 
@@ -31,10 +35,11 @@ extern int   round_distance (int i, int j);
  *
  * Input: p0 -> First parent
  *        p1 -> Second parent
+ *        ncitiesGen -> amount of existent cities
  * Output: A pointer to the offspring
  * Side effect: none
  */
-cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1);
+cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1, int ncitiesGen);
 
 /*
  * Creates a new generation of offsprings given a base population
@@ -42,11 +47,12 @@ cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1);
  * Input: pop-> Base population
  *       spop -> Size of the population
  *       dist -> Distance matrix
+ *       ncitiesGen -> amount of existent cities
  * Output: A pointer to the array containing the new generation, which consists
  *         of spop - 1 individuals
  * Side effects: None.
  */
-cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist);
+cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist, int ncitiesGen);
 
 /*
  * Evaluates a population a gets the best individual
