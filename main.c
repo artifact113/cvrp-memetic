@@ -2,13 +2,11 @@
 
 int main(int argc, char **argv)
 {
-    int i, j, its = 40, itBest = 0, popSize = 10, ncitiesGen;
+    int i, its = 40, popSize = 10, ncitiesGen;
     cvrp_sol *best;
     cvrp_sol **pop, **offs;
-    time_t tBest, start, end;
     int **distMatGen;
-    char fileName[100], *tmp, fnd[100];
-    FILE *outFile;
+    seed = (int)clock();
     
     read_cvrp(argv[1]);
     ncitiesGen = ncities;
@@ -50,17 +48,31 @@ int main(int argc, char **argv)
          * The selection for crossing is using all the individuals of the population
          * and pair them according to their possition in the array
          */
-        offs = cross_pop(pop, popSize, distMatGen);
-        optimize(offs, popSize, distMatGen);
-        
-        /*Mutation algorithm over 'offs' here*/
-        
-        optimize(offs, popSize, distMatGen);
-        
-        /*Selection algorithm between 'pop' and 'offs' here*/
-        
-        best = evaluate_pop(pop, popSize, distMatGen);
+        offs = cross_pop(pop, popSize, distMatGen, ncitiesGen);
+        optimize(offs, popSize - 1, distMatGen);
+
+        mutation(offs, popSize - 1, distMatGen, ncitiesGen);
+
+        optimize(offs, popSize - 1, distMatGen);
+
+        selection(pop, offs, popSize, distMatGen, ncitiesGen);
+        free(offs);
+        printf("%d ", i);
+        fflush(stdout);
     }
+    printf("\n");
+    for(i = 0; i < popSize; ++i){
+        printf("\nSolution %d: \n", i);
+        if(pop[i] == NULL){
+            printf("NULL\n");
+        }else{
+            printSol(pop[i]->arr, pop[i]->limits, pop[i]->nTours, distMatGen);
+        }
+    }
+
+    printf("\nBEST %d: \n", i);
+    best = evaluate_pop(pop, popSize, distMatGen);
+    printSol(best->arr, best->limits, best->nTours, distMatGen);
         
     
     for(i = 0; i < popSize; ++ i)
@@ -188,8 +200,7 @@ void tsp(int *best){
 
         prob = calculate_prob(vc, vn, T);
         /*printf("%f\n", prob);*/
-        ticks = clock();
-        seed = (int) ticks;
+        seed = (int)clock();
         ran = ran01(&seed);
         /*printf("%f ? %f\n",ran, prob);*/
         if(ran < prob){
@@ -223,8 +234,8 @@ void random_neighbour(int *t){
     /*Se le suma 1 porque, si se llega con 0 ticks, se quiere que la semilla no
       sea 0, ya que esto no generará ningún número
       */
-    seed = (int)ticks + 1;
     
+    seed = (int)clock();
     r0 = random_number(&seed) % ncities;
     r1 = random_number(&seed) % ncities;
     int tmp = t[r0];
@@ -572,7 +583,6 @@ cvrp_sol **generate_initial_pop(int n, int **dist, int nc){
     aux->limits = malloc((nc - 1) * sizeof(int));
     
     ncities = nc - 1;
-    seed = 1;
     aux->arr = generate_random_vector();
     
     /*for(i = 0; i < nc - 1; ++ i)
@@ -600,9 +610,7 @@ int delimit(int *arr, int *limits, int **dist, int ncities){
             totCap += caps[arr[i + 1]];
         }else{
             limits[ammT] = i + 1;
-            /*
-            printf("Limit for tour %d: %d\n", ammT, limits[ammT]);
-            */
+            /* printf("Limit for tour %d: %d\n", ammT, limits[ammT]);*/
             ++ ammT;
             totCap = caps[arr[i + 1]];
             totTime = 2 * dist[0][arr[i + 1]] + dt;
@@ -611,6 +619,7 @@ int delimit(int *arr, int *limits, int **dist, int ncities){
     
     if(limits[ammT - 1] != (ncities - 1)){
         limits[ammT] = ncities - 1;
+            /* printf("Limit for tour %d: %d\n", ammT, limits[ammT]);*/
         ++ ammT;
     }
     
@@ -628,6 +637,127 @@ void optimize(cvrp_sol **pop, int spop, int **dist){
                 boxTSP(pop[i]->arr, low, up, dist);
             }
         }
+    }
+}
+
+void mutation(cvrp_sol **pop, int spop, int **dist, int nc){
+    int i;
+    /* iterar por solución */
+    for(i = 0; i < spop; ++ i){
+        if(pop[i] == NULL){
+            continue;
+        }
+        int j;
+        cvrp_sol* sol = pop[i];
+        /* iterar por tour */
+        for(j = 0; j < sol->nTours; ++ j){
+            int low, up;
+            low = (j == 0 ? 0 : sol->limits[j - 1]);
+            up = sol->limits[j];
+            /* hallar la suma de las coordenadas de las ciudades del tour */
+            double mx = 0, my = 0;
+            int k;
+            for (k = low; k <= up; ++ k){
+                mx += xc[sol->arr[k]];
+                my += yc[sol->arr[k]];
+            }
+            /* centro geométrico de las ciudades del tour */
+            mx /= up - low + 1;
+            my /= up - low + 1;
+            /* hallar la ciudad más lejana del centro geométrico de este tour */
+            int ws = -1;
+            double wdist;
+            for (k = low; k <= up; ++ k){
+                double x, y;
+                x = xc[sol->arr[k]];
+                y = yc[sol->arr[k]];
+                if (-1 == ws || wdist < sqrt(x*x + y*y)) {
+                    ws = k;
+                    wdist = sqrt(x*x + y*y);
+                }
+            }
+            /* hallar la ciudad del siguiente tour más cercana al centro geométrico de este tour */
+            int lowNext, upNext;
+            lowNext = (j + 1 == sol->nTours ? 0 : sol->limits[j]);
+            upNext = sol->limits[j + 1 == sol->nTours ? 1 : j + 1];
+            int bs = -1;
+            double bdist;
+            for (k = lowNext; k <= upNext; ++ k){
+                double x, y;
+                x = xc[sol->arr[k]];
+                y = yc[sol->arr[k]];
+                if (-1 == bs || sqrt(x*x + y*y) < bdist) {
+                    bs = k;
+                    bdist = sqrt(x*x + y*y);
+                }
+            }
+            /* intercambiar las ciudades. no nos preocupamos porque los toures sigan siendo válidos */
+            k = sol->arr[ws];
+            sol->arr[ws] = sol->arr[bs];
+            sol->arr[bs] = k;
+        }
+        /* delimitar los toures por si se generaron inválidos. */
+        sol->nTours = delimit(sol->arr, sol->limits, dist, nc - 1);
+    }
+}
+
+void selection(cvrp_sol **pop, cvrp_sol **offs, int spop, int **dist, int nc){
+    int T = spop * 2 - 1, i, j;
+    cvrp_sol *sols[T];
+    /* meter todas las soluciones en un pote */
+    for (i = 0; i < spop && pop[i] != NULL; ++ i) {
+        sols[i] = pop[i];
+    }
+    for (j = 0; j < spop - 1 && offs[j] != NULL; ++ j) {
+        sols[j + i] = offs[j];
+    }
+    T = i + j;
+    int eval[T], result[T], prob[T];
+    if (spop < T) {
+        /* valor de la solución, ciudades ordenadas y probabilidad de escoger la n-va ciudad */
+        for (i = 0; i < T; ++ i) {
+            eval[i] = evaluate_sol(sols[i]->arr, sols[i]->arr, sols[i]->nTours, dist);
+            result[i] = i;
+            /*  probabilidad de eliminar el n-ésimo elemento: [prob(n - 1), prob(n))
+                sum(1) = 1
+                sum(n) = sum(n - 1) + n
+                         1  2  3   4   5   6   7   8   9  10  11  12  13
+                sum[i] = 1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66, 78, 91, ...
+                prob(1) = 1
+                prob(n) = prob(n - 1) + sum(n)
+                          1  2   3   4   5   6   7    8    9   10   11   12   13
+                prob[i] = 1, 4, 10, 20, 35, 65, 84, 120, 165, 220, 286, 364, 455...
+            */
+            prob[i] = (0 < i ? prob[i - 1] : 0) + i * (i + 1) / 2;
+        }
+        /* darle significado al arreglo de ciudades ordenadas usando los valores de las soluciones */
+        sort(eval, result, 0, T - 1);
+        /* descartar 1 elemento por iteración hasta llegar a spop */
+        while (spop < T) {
+            /* número aleatorio  */
+            seed = clock();
+            int p = ran01(&seed) * (prob[T - 1] - 1);
+            i = 0;
+            /* encontrar índice asociado al número aleatorio [0, T - 1] */
+            while (prob[i] <= p) ++ i;
+            j = result[i];
+            while (i < T - 1){ result[i] = result[i + 1]; i += 1; }
+            for (i = 0; i < T - 1; ++ i) {
+                if (j < result[i]) {
+                    -- result[i];
+                }
+            }
+            /* liberar el espacio ocupado por la solución */
+            free(sols[j]);
+            /* desplazar todas las soluciones luego de la descartada hacia la izquierda */
+            while (j < T - 1){ sols[j] = sols[j + 1]; j += 1; }
+            /* ahora hay una solución menos */
+            -- T;
+        }
+    }
+    /* copiar las soluciones */
+    for (i = 0; i < T; ++ i) {
+        pop[i] = sols[i];
     }
 }
 
@@ -662,8 +792,8 @@ cvrp_sol *evaluate_pop(cvrp_sol **pop, int spop, int **dist){
     return best;
 }
 
-cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist){
-    int i, j, k;
+cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist, int nc){
+    int i, j;
     cvrp_sol **offs = (cvrp_sol **)malloc((spop - 1) * sizeof(cvrp_sol *));
     
     for(i = 0; i < spop - 1; ++ i)
@@ -675,9 +805,9 @@ cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist){
         if((pop[i] == NULL) || (pop[i + 1] == NULL))
             continue;
         /*printf("Crossing %d - %d\n", i, i + 1);*/
-        offs[j] = OX(pop[i], pop[i + 1]);
+        offs[j] = OX(pop[i], pop[i + 1], nc - 1);
         /*printf("Out\n");*/
-        offs[j]->nTours = delimit(offs[j]->arr, offs[j]->limits, dist, pop[i]->limits[pop[i]->nTours - 1]);
+        offs[j]->nTours = delimit(offs[j]->arr, offs[j]->limits, dist, nc - 1);/* pop[i]->limits[pop[i]->nTours - 1]);*/
         /*printSol(offs[j]->arr, offs[j]->limits, offs[j]->nTours, dist);*/
         ++ j;
     }
@@ -685,13 +815,13 @@ cvrp_sol **cross_pop(cvrp_sol **pop, int spop, int **dist){
     return offs;
 }
 
-cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1){
-    int nc = p0->limits[p0->nTours - 1], i, j, size_sub, init_sub;
+cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1, int nc){
+    int /*nc = p0->limits[p0->nTours - 1],*/ i, j, size_sub, init_sub;
     int *isUsed = (int *)malloc(nc * sizeof(int));
-    long seed = (long)clock();
     cvrp_sol *off = (cvrp_sol *)malloc(sizeof(cvrp_sol));
     
     size_sub = nc / 3;
+    seed = clock();
     init_sub = ran01(&seed) * (nc - size_sub);
     
     /*printf("Starting at: %d\nWith length: %d\nnc = %d\n", init_sub, size_sub, nc);*/
@@ -699,7 +829,7 @@ cvrp_sol *OX(cvrp_sol *p0, cvrp_sol *p1){
     off->limits = (int *)malloc(nc * sizeof(int));
     
     memset(isUsed, 0, nc * sizeof(int));
-        
+
     for(i = init_sub; i < init_sub + size_sub; ++ i){
         off->arr[i] = p0->arr[i];
         isUsed[p0->arr[i] - 1] = 1;
