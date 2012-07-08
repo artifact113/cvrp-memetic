@@ -3,44 +3,24 @@
 int main(int argc, char **argv)
 {
     int i, its = 40, popSize = 10, ncitiesGen;
-    cvrp_sol *best;
-    cvrp_sol **pop, **offs;
-    int **distMatGen;
+    cvrp_sol **pop, **offs, *best;
+    int **distMatGen, vbest = -1;
+    time_t start, end;
     seed = (int)clock();
     
+    time(&start);
     read_cvrp(argv[1]);
     ncitiesGen = ncities;
+
+    best = (cvrp_sol *)malloc(sizeof(cvrp_sol));
+    best->arr = malloc((ncities - 1) * sizeof(int));
+    best->limits = malloc((ncities - 1) * sizeof(int));
 
     distMatGen = compute_distances();
 
     pop = generate_initial_pop(popSize, distMatGen, ncitiesGen);
     
-    /*Print initial population*/
-    /*for(i = 0; i < popSize; ++i){
-        printf("\nSolution %d: \n", i);
-        if(pop[i] == NULL){
-            printf("NULL\n");
-        }else{
-            printSol(pop[i]->arr, pop[i]->limits, pop[i]->nTours, distMatGen);
-        }
-    }*/
-    
     optimize(pop, popSize,distMatGen);
-    
-    /*Print initial population optimized*/
-    /*for(i = 0; i < popSize; ++i){
-        printf("\nSolution %d: \n", i);
-        if(pop[i] == NULL){
-            printf("NULL\n");
-        }else{
-            printSol(pop[i]->arr, pop[i]->limits, pop[i]->nTours, distMatGen);
-        }
-    }*/
-    
-    best = evaluate_pop(pop, popSize, distMatGen);
-    /*printSol(best->arr, best->limits, best->nTours, distMatGen);
-    printf("Total service time: %d\n", evaluate_sol(best->arr, best->limits, best->nTours, distMatGen));*/
-    
 
     /*Start iterating*/
     for(i = 0; i < its; ++ i){
@@ -56,25 +36,43 @@ int main(int argc, char **argv)
         optimize(offs, popSize - 1, distMatGen);
 
         selection(pop, offs, popSize, distMatGen, ncitiesGen);
+
+        
+    /*Print initial population*/
+    /*
+    int j;
+    for(j = 0; j < popSize && pop[j] != NULL; ++j){
+        printf("\nSolution %d: %d\n", j, evaluate_sol(pop[j]->arr, pop[j]->limits, pop[j]->nTours, distMatGen));
+    }*/
+    
+        cvrp_sol *cbest = evaluate_pop(pop, popSize, distMatGen);
+        int tbest = evaluate_sol(cbest->arr, cbest->limits, cbest->nTours, distMatGen);
+        if (-1 == vbest || tbest < vbest) {
+            int i;
+            for (i = 0; i < ncities - 1; ++ i) {
+                best->arr[i] = cbest->arr[i];
+                best->limits[i] = cbest->limits[i];
+            }
+            vbest = tbest;
+        }
         free(offs);
         printf("%d ", i);
         fflush(stdout);
     }
-    printf("\n");
-    for(i = 0; i < popSize; ++i){
-        printf("\nSolution %d: \n", i);
-        if(pop[i] == NULL){
-            printf("NULL\n");
-        }else{
-            printSol(pop[i]->arr, pop[i]->limits, pop[i]->nTours, distMatGen);
-        }
-    }
 
-    printf("\nBEST %d: \n", i);
-    best = evaluate_pop(pop, popSize, distMatGen);
-    printSol(best->arr, best->limits, best->nTours, distMatGen);
-        
+    time(&end);
+    FILE* outFile;
+    char* tmp = strtok(argv[1], "/"), fnd[100], fileName[100];
+    while(tmp != NULL){
+        sprintf(fnd, "%s", tmp);
+        tmp = strtok(NULL, "/");
+    }
     
+    sprintf(fileName, "Resultados/stat.%s", fnd);
+    outFile = fopen(fileName, "w");
+    fprintf(outFile, "Distance of best solution: %d\n", vbest);
+    fprintf(outFile, "Total run time: %d\n", (int)(end - start));
+
     for(i = 0; i < popSize; ++ i)
         free(pop[i]);    
     free(pop);
